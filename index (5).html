@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La travesía — Cabo Verde a Dock Sud</title>
+<meta name="description" content="Un recorrido interactivo por la inmigración caboverdiana en Argentina, desde las islas hasta Dock Sud.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --azul-noche:#0e2a38; --azul-atlantico:#164a5f;
+  --arena:#ece3d1; --arena-clara:#f5efe2;
+  --oxido:#8a4328; --oxido-claro:#c98857;
+  --tinta:#1c1c1a; --linea:rgba(14,42,56,.18);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0;background:var(--azul-noche);color:var(--arena-clara);font-family:'Work Sans',sans-serif;overflow-x:hidden;}
+h1,h2,h3,.display{font-family:'Fraunces',serif;font-weight:600;letter-spacing:-.01em;margin:0;}
+a{color:inherit;} img{max-width:100%;display:block;}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px;position:relative;z-index:2;}
+
+/* voyage rail: fixed ship path that runs the whole page */
+#voyage-rail{
+  position:fixed; left:0; top:0; width:100%; height:100vh; pointer-events:none; z-index:1;
+}
+#voyage-rail svg{width:100%;height:100%;}
+#route-progress{ stroke-dasharray:2000; stroke-dashoffset:2000; transition:stroke-dashoffset .05s linear; }
+
+nav{position:fixed;top:0;left:0;right:0;z-index:60;background:rgba(14,42,56,.75);backdrop-filter:blur(8px);border-bottom:1px solid rgba(236,227,209,.12);}
+nav .wrap{display:flex;justify-content:space-between;align-items:center;padding:16px 28px;}
+.brand{font-family:'Fraunces',serif;font-weight:600;}
+.brand em{font-style:italic;color:var(--oxido-claro);}
+.navlinks{display:flex;gap:24px;font-size:.85rem;}
+.navlinks a{text-decoration:none;opacity:.65;}
+.navlinks a:hover{opacity:1;}
+@media (max-width:680px){.navlinks{display:none;}}
+
+section{position:relative;padding:140px 0;min-height:60vh;display:flex;align-items:center;}
+.section-head{max-width:620px;margin-bottom:50px;}
+.kicker{color:var(--oxido-claro);font-size:.85rem;letter-spacing:.02em;margin-bottom:14px;}
+.section-head p{margin-top:16px;color:rgba(236,227,209,.78);font-size:1.05rem;max-width:58ch;}
+
+/* reveal-on-scroll */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease, transform .7s ease;}
+.reveal.in{opacity:1;transform:translateY(0);}
+
+/* HERO */
+header.hero{min-height:100vh;padding-top:39vh;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+  background:
+    linear-gradient(180deg, rgba(14,42,56,.55), rgba(14,42,56,.92) 75%, var(--azul-noche) 100%),
+    radial-gradient(1200px 600px at 80% 10%, rgba(201,136,87,.18), transparent 60%),
+    url('img/tarrafal.jpg') center 30%/cover no-repeat;
+}
+.hero h1{font-size:clamp(2.6rem,7vw,5.2rem);line-height:1.02;max-width:15ch;}
+.hero p.lead{margin-top:26px;max-width:50ch;font-size:1.18rem;color:rgba(236,227,209,.85);}
+.scroll-cue{margin-top:70px;font-size:.8rem;color:rgba(236,227,209,.5);display:flex;align-items:center;gap:10px;}
+.scroll-cue .line{width:34px;height:1px;background:rgba(236,227,209,.5);animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
+
+/* stat counters */
+.stat-row{display:flex;gap:60px;flex-wrap:wrap;margin-top:20px;}
+.stat .num{font-family:'Fraunces',serif;font-size:2.6rem;font-weight:600;color:var(--oxido-claro);}
+.stat .lbl{font-size:.82rem;color:rgba(236,227,209,.6);margin-top:4px;}
+
+/* timeline scrubber */
+#timeline-section{flex-direction:column;align-items:stretch;}
+.scrub{display:flex;gap:10px;overflow-x:auto;padding-bottom:14px;margin-bottom:34px;scrollbar-width:thin;}
+.scrub button{
+  flex:none;background:none;border:none;color:rgba(236,227,209,.45);font-family:'Fraunces',serif;font-size:1.15rem;
+  padding:8px 18px;border-bottom:2px solid transparent;cursor:pointer;transition:.2s;
+}
+.scrub button.active{color:var(--arena-clara);border-color:var(--oxido-claro);}
+.tl-panel{display:none;max-width:64ch;}
+.tl-panel.active{display:block;}
+.tl-panel h3{font-size:1.5rem;margin-bottom:12px;}
+.tl-panel p{color:rgba(236,227,209,.78);font-size:1.05rem;}
+
+/* Dock Sud spotlight, interactive map */
+#dock-sud{background:linear-gradient(180deg, rgba(201,136,87,.06), transparent);}
+.map-shell{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+@media (max-width:860px){.map-shell{grid-template-columns:1fr;}}
+.hotspot-map{position:relative;background:rgba(236,227,209,.04);border:1px solid rgba(236,227,209,.14);border-radius:4px;padding:28px;}
+.hotspot-map svg{width:100%;height:auto;}
+.hs{cursor:pointer;}
+.hs circle{fill:var(--oxido-claro);transition:r .2s;}
+.hs:hover circle,.hs.active circle{r:9;}
+.hs text{fill:rgba(236,227,209,.85);font-size:11px;font-family:'Work Sans';}
+.hs-info{min-height:180px;}
+.hs-info h4{font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;color:var(--oxido-claro);}
+.hs-info p{color:rgba(236,227,209,.8);font-size:1rem;}
+
+figure{margin:0;}
+figure img{border-radius:4px;width:100%;object-fit:cover;}
+figure figcaption{font-size:.8rem;color:rgba(236,227,209,.5);margin-top:10px;}
+.map-figure{max-width:280px;margin:0 auto;}
+.map-figure img{filter:invert(0);opacity:.95;}
+.dock-photo{border:1px solid rgba(236,227,209,.14);}
+
+/* trades ticker */
+.trade-strip{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid rgba(236,227,209,.14);}
+.trade-cell{flex:1 1 220px;padding:26px 6px 26px 0;border-bottom:1px solid rgba(236,227,209,.14);}
+.trade-cell h4{font-size:.98rem;font-weight:600;}
+.trade-cell p{font-size:.85rem;color:rgba(236,227,209,.6);margin-top:6px;}
+
+.quote-section{align-items:center;justify-content:center;text-align:center;}
+.quote{font-family:'Fraunces',serif;font-style:italic;font-size:clamp(1.5rem,4vw,2.4rem);line-height:1.4;max-width:22ch;margin:0 auto;}
+.quote cite{display:block;font-style:normal;font-family:'Work Sans';font-size:.9rem;margin-top:26px;color:rgba(236,227,209,.55);}
+
+footer{padding:50px 0 60px;font-size:.82rem;color:rgba(236,227,209,.45);border-top:1px solid rgba(236,227,209,.12);}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+footer a{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div id="voyage-rail" aria-hidden="true">
+  <svg viewBox="0 0 100 1000" preserveAspectRatio="none">
+    <path id="route-progress" d="M8 0 C 40 150, 2 300, 30 450 C 55 580, 4 700, 25 850 C 40 930, 15 970, 20 1000"
+      stroke="#c98857" stroke-width="0.35" fill="none" opacity="0.55" vector-effect="non-scaling-stroke"/>
+  </svg>
+</div>
+
+<nav>
+  <div class="wrap">
+    <div class="brand">Cabo Verde <em>→ Dock Sud</em></div>
+    <div class="navlinks">
+      <a href="#historia">La travesía</a>
+      <a href="#dock-sud">Dock Sud</a>
+      <a href="#oficios">Oficios</a>
+      <a href="#legado">Legado</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <div class="kicker reveal in">Muestra universitaria — introducción interactiva</div>
+  <h1 class="reveal in">Una travesía de más de cien años</h1>
+  <p class="lead reveal in">Desde las islas de Cabo Verde hasta los muelles de Dock Sud: seguí el recorrido de una comunidad que cruzó el Atlántico y construyó su casa junto al río.</p>
+  <div class="stat-row reveal in">
+    <div class="stat"><div class="num">10</div><div class="lbl">islas de origen</div></div>
+    <div class="stat"><div class="num">1932</div><div class="lbl">Unión Caboverdeana de Dock Sud</div></div>
+    <div class="stat"><div class="num">1975</div><div class="lbl">independencia de Cabo Verde</div></div>
+  </div>
+  <div class="scroll-cue"><div class="line"></div>Desplazate para navegar la travesía</div>
+</header>
+
+<section id="historia">
+  <div class="wrap" id="timeline-section">
+    <div class="section-head reveal">
+      <div class="kicker">La travesía, año a año</div>
+      <h2>Elegí un momento</h2>
+      <p>Una migración voluntaria, empujada por la sequía y la falta de trabajo en el archipiélago bajo dominio colonial portugués.</p>
+    </div>
+
+    <figure class="map-figure reveal" style="margin-bottom:48px;">
+      <img src="img/mapa-cabo-verde.webp" alt="Mapa de ubicación de Cabo Verde, frente a la costa oeste de África">
+      <figcaption>Cabo Verde: diez islas a 500 km de Dakar, Senegal.</figcaption>
+    </figure>
+
+    <div class="scrub reveal" id="scrub" role="tablist" aria-label="Línea de tiempo">
+      <button data-t="0" class="active">Fines s. XIX</button>
+      <button data-t="1">1910–1923</button>
+      <button data-t="2">1927–1933</button>
+      <button data-t="3">Posguerra</button>
+      <button data-t="4">1975</button>
+      <button data-t="5">Hoy</button>
+    </div>
+
+    <div class="reveal">
+      <div class="tl-panel active" data-p="0">
+        <h3>Los primeros navegantes</h3>
+        <p>Por su vínculo histórico con el mar, los primeros caboverdianos llegan a la Argentina como marineros y se asientan en zonas portuarias, donde ya había trabajo embarcado disponible.</p>
+      </div>
+      <div class="tl-panel" data-p="1">
+        <h3>Se consolida la llegada</h3>
+        <p>La afluencia se hace más regular desde 1923. Muchos viajan con documentación portuguesa —Cabo Verde era colonia de Portugal— lo que durante años invisibilizó su origen en los registros oficiales argentinos.</p>
+      </div>
+      <div class="tl-panel" data-p="2">
+        <h3>Nacen las primeras instituciones</h3>
+        <p>Un nuevo impulso migratorio coincide con la fundación de las primeras entidades comunitarias: la Asociación Cultural y Deportiva Caboverdeana de Ensenada (1927) y la Sociedad de Socorros Mutuos Unión Caboverdeana de Dock Sud (hacia 1932).</p>
+      </div>
+      <div class="tl-panel" data-p="3">
+        <h3>Una tercera oleada</h3>
+        <p>Tras la Segunda Guerra Mundial llega una nueva ola de inmigrantes, en un contexto de expansión de la marina mercante y de la actividad portuaria e industrial argentina.</p>
+      </div>
+      <div class="tl-panel" data-p="4">
+        <h3>Independencia de Cabo Verde</h3>
+        <p>El 5 de julio, Cabo Verde se independiza de Portugal. Ya existe en Argentina una comunidad de segunda y tercera generación, con instituciones propias e idioma criollo.</p>
+      </div>
+      <div class="tl-panel" data-p="5">
+        <h3>Una comunidad que se sigue reuniendo</h3>
+        <p>Las asociaciones fundadas hace un siglo siguen activas como espacio de música, comida e idioma criollo para las nuevas generaciones de descendientes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="dock-sud">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="kicker">El destino final</div>
+      <h2>Dock Sud, el corazón de la comunidad</h2>
+      <p>Ningún otro punto del país concentró tanta vida caboverdiana. Explorá el barrio: tocá cada punto del plano.</p>
+    </div>
+
+    <div class="map-shell reveal">
+      <figure>
+        <img class="dock-photo" src="img/union-caboverdeana.jpg" alt="Fachada de la Sociedad de Socorros Mutuos Unión Caboverdeana, Dock Sud">
+        <figcaption>Sede actual de la Unión Caboverdeana, en Dock Sud.</figcaption>
+      </figure>
+      <div class="hs-info" id="hsinfo">
+        <h4>La Unión Caboverdeana</h4>
+        <p>Sociedad de Socorros Mutuos fundada hacia 1932. Asistía ante la enfermedad, la muerte o la falta de trabajo, y sostenía las redes familiares y culturales de la comunidad. Sigue activa hoy, en el mismo barrio donde nació.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="oficios" style="min-height:auto;padding:100px 0;">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="kicker">El trabajo</div>
+      <h2>Oficios ligados al agua</h2>
+    </div>
+    <div class="trade-strip reveal">
+      <div class="trade-cell"><h4>Marina Mercante y de Guerra</h4><p>Marineros, maquinistas y tripulantes.</p></div>
+      <div class="trade-cell"><h4>Flota Fluvial Argentina</h4><p>Trabajo embarcado en el Paraná y el Río de la Plata.</p></div>
+      <div class="trade-cell"><h4>YPF y astilleros</h4><p>Carpinteros, mecánicos y electricistas.</p></div>
+      <div class="trade-cell"><h4>ELMA</h4><p>La naviera estatal empleó a numerosos trabajadores caboverdianos.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="legado" class="quote-section">
+  <div class="wrap">
+    <p class="quote reveal">"Son diez islas, un archipiélago a 500 kilómetros de Dakar. Esa historia dejó una identidad particular."
+      <cite>Voz de la comunidad caboverdiana en Argentina</cite>
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Introducción histórica interactiva preparada para una muestra universitaria sobre la comunidad caboverdiana en Argentina.</div>
+    <div>Fuentes: prensa argentina (2026) y <a href="https://es.wikipedia.org/wiki/Inmigraci%C3%B3n_caboverdiana_en_Argentina" target="_blank" rel="noopener">Wikipedia — Inmigración caboverdiana en Argentina</a></div>
+  </div>
+</footer>
+
+<script>
+// scroll progress on the voyage path
+const route = document.getElementById('route-progress');
+const len = route.getTotalLength();
+route.style.strokeDasharray = len;
+route.style.strokeDashoffset = len;
+function onScroll(){
+  const h = document.documentElement;
+  const pct = h.scrollTop / (h.scrollHeight - h.clientHeight);
+  route.style.strokeDashoffset = len - (len * Math.min(Math.max(pct,0),1));
+}
+document.addEventListener('scroll', onScroll, {passive:true});
+onScroll();
+
+// reveal on scroll
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in'); });
+},{threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// timeline scrubber
+document.querySelectorAll('#scrub button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#scrub button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const t = btn.dataset.t;
+    document.querySelectorAll('.tl-panel').forEach(p=>p.classList.toggle('active', p.dataset.p===t));
+  });
+});
+
+// hotspot map
+const hsData = [
+  {t:"Los muelles", d:"Punto de llegada de generaciones de marineros caboverdianos, y origen del vínculo del barrio con la actividad naviera."},
+  {t:"La Unión Caboverdeana", d:"Sociedad de Socorros Mutuos fundada hacia 1932. Asistía ante la enfermedad, la muerte o la falta de trabajo, y sostenía las redes familiares y culturales de la comunidad. Sigue activa hoy."},
+  {t:"Astilleros", d:"Muchos caboverdianos trabajaron como carpinteros, mecánicos y electricistas navales en los astilleros cercanos al puerto."},
+  {t:"Casas de familias", d:"Alrededor del puerto se instalaron familias enteras, transmitiendo el idioma criollo, la música y la comida de generación en generación."}
+];
+document.querySelectorAll('.hs').forEach(hs=>{
+  hs.addEventListener('click', ()=>{
+    document.querySelectorAll('.hs').forEach(h=>h.classList.remove('active'));
+    hs.classList.add('active');
+    const d = hsData[hs.dataset.i];
+    document.getElementById('hsinfo').innerHTML = '<h4>'+d.t+'</h4><p>'+d.d+'</p>';
+  });
+});
+</script>
+</body>
+</html>
